@@ -1,0 +1,137 @@
+# ---------------------------------------------------------------------------
+# Lead Finder — sample configuration
+#
+#   cp config.example.yaml config.yaml
+#   python main.py --config config.yaml
+#
+# Every key here is optional: anything you omit keeps the built-in default
+# from config.py. Command-line flags override this file, which overrides .env,
+# which overrides the defaults.
+#
+# API keys do NOT belong here — keep them in .env.
+# ---------------------------------------------------------------------------
+
+log_level: INFO
+log_file: logs/lead_finder.log
+
+# --- What to search for ----------------------------------------------------
+search:
+  country: United States
+  state: Texas
+  city: Austin
+  category: Dentists
+
+  # Two-letter ccTLD bias for the Places query (optional but improves accuracy).
+  country_code: us
+
+  # "text"   -> Places Text Search  (best recall, honours the free-form query)
+  # "nearby" -> Places Nearby Search (strict radius, needs a Places `type`)
+  search_mode: text
+
+  radius_m: 15000          # search radius in metres
+  max_results: 60          # hard cap on businesses fetched
+  min_reviews: 0           # drop businesses with fewer reviews than this
+  min_rating: 0.0          # drop businesses rated below this (0 = keep all)
+  require_no_website: false  # true => only keep businesses with no website
+
+  # Optional extra keyword appended to the query, e.g. "emergency".
+  keyword: null
+
+  # Places `type` for nearby search, e.g. dentist / restaurant / gym.
+  # Leave null to let the app infer it from `category`.
+  place_type: null
+
+# --- Google Places ---------------------------------------------------------
+google:
+  api_version: legacy      # legacy | v1
+  language: en
+  requests_per_second: 8.0
+  max_pages: 3             # legacy Text Search caps out at 3 pages (60 results)
+  page_delay_seconds: 2.0  # next_page_token needs a moment to become valid
+
+# --- PageSpeed Insights ----------------------------------------------------
+pagespeed:
+  enabled: true
+  strategies: [mobile, desktop]
+  categories: [performance, accessibility, best-practices, seo]
+  requests_per_second: 0.5   # PSI is slow and rate-limited; stay gentle
+  timeout_seconds: 120
+  max_workers: 4
+
+# --- Website audit ---------------------------------------------------------
+audit:
+  enabled: true
+  max_workers: 8             # sites audited concurrently
+  timeout_seconds: 15
+  max_links_to_check: 25     # sampled links probed for 4xx/5xx
+  max_images_to_check: 20
+  asset_check_workers: 6
+  follow_contact_pages: true # crawl /contact etc. looking for an email address
+  respect_robots: true       # applies to sub-pages; the homepage is always fetched
+  contact_paths: [/contact, /contact-us, /contactus, /about, /about-us, /get-in-touch]
+
+# --- AI recommendations ----------------------------------------------------
+ai:
+  enabled: true
+  provider: auto            # auto | claude | template
+  model: claude-opus-5
+  effort: low               # low | medium | high | xhigh | max
+  max_tokens: 4096
+  max_workers: 4
+
+# --- Lead scoring ----------------------------------------------------------
+# Every rule is worth `points`; the total is capped at max_score.
+scoring:
+  no_website: 50
+  site_unreachable: 30
+  outdated_design: 15
+  slow_performance: 15
+  no_ssl: 10
+  not_mobile_responsive: 10
+  no_cta: 10
+  no_contact_form: 10
+  few_reviews: 5
+  no_booking: 5
+  missing_meta_description: 5
+  missing_title: 3
+  broken_assets: 4
+  no_social_presence: 3
+  poor_core_web_vitals: 5
+  no_chat: 2
+  high_demand_bonus: 8      # busy business + weak web presence = hottest lead
+  low_rating_penalty: 3     # reputation-management upsell
+
+  # Thresholds used by the rules above
+  performance_threshold: 50     # mobile PSI score below this = "slow"
+  few_reviews_threshold: 20
+  high_demand_reviews: 100
+  low_rating_threshold: 4.0
+  lcp_threshold_ms: 4000
+  cls_threshold: 0.25
+
+  # Priority buckets
+  hot_threshold: 70
+  warm_threshold: 40
+  max_score: 100
+
+# --- Output ----------------------------------------------------------------
+output:
+  directory: output
+  filename_template: "leads_{city}_{category}_{timestamp}.xlsx"
+  write_csv: true
+  write_json: false
+
+# --- Response cache --------------------------------------------------------
+# Caches Places Details and PageSpeed responses on disk so re-runs are cheap
+# and do not re-bill the API. Delete the directory to force a refresh.
+cache:
+  enabled: true
+  directory: .cache
+  ttl_hours: 168            # 7 days
+
+# --- HTTP ------------------------------------------------------------------
+http:
+  timeout_seconds: 20
+  max_retries: 3
+  backoff_factor: 0.8
+  backoff_max_seconds: 30
